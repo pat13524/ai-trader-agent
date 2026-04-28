@@ -1,30 +1,19 @@
 {
   "watchlist": [
-    {
-      "symbol": "SPY",
-      "description": "S&P 500 ETF — baseline market exposure",
-      "max_allocation_pct": 15
-    },
-    {
-      "symbol": "QQQ",
-      "description": "Nasdaq ETF — tech sector exposure",
-      "max_allocation_pct": 10
-    },
-    {
-      "symbol": "NVDA",
-      "description": "GPU/AI infrastructure — high conviction holding",
-      "max_allocation_pct": 8
-    },
-    {
-      "symbol": "AAPL",
-      "description": "Large cap tech — stability anchor",
-      "max_allocation_pct": 8
-    },
-    {
-      "symbol": "MSFT",
-      "description": "Cloud/enterprise — AI infrastructure play",
-      "max_allocation_pct": 8
-    }
+    {"symbol": "NVDA", "description": "GPU/AI infrastructure", "max_allocation_pct": 8},
+    {"symbol": "MSFT", "description": "Cloud/enterprise", "max_allocation_pct": 8},
+    {"symbol": "GOOG", "description": "Google/Alphabet", "max_allocation_pct": 8},
+    {"symbol": "MU", "description": "Micron - memory chips", "max_allocation_pct": 7},
+    {"symbol": "AVGO", "description": "Broadcom - semiconductors", "max_allocation_pct": 7},
+    {"symbol": "ADBE", "description": "Adobe - software", "max_allocation_pct": 7},
+    {"symbol": "NOW", "description": "ServiceNow - enterprise software", "max_allocation_pct": 7},
+    {"symbol": "TTWO", "description": "Take-Two Interactive - gaming", "max_allocation_pct": 6},
+    {"symbol": "ABX", "description": "Barrick Gold - US listed", "max_allocation_pct": 5},
+    {"symbol": "NBIS", "description": "Nebius Group", "max_allocation_pct": 5},
+    {"symbol": "RZLV", "description": "Rezolve AI", "max_allocation_pct": 3},
+    {"symbol": "SPY", "description": "S&P 500 ETF - market exposure", "max_allocation_pct": 10},
+    {"symbol": "QQQ", "description": "Nasdaq ETF - tech exposure", "max_allocation_pct": 8},
+    {"symbol": "AAPL", "description": "Apple - large cap anchor", "max_allocation_pct": 7}
   ],
   "cash_reserve_pct": 10
 }
