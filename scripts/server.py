@@ -2,7 +2,7 @@ import os
 import json
 import glob
 from datetime import datetime, timedelta, timezone
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import requests
 from dotenv import load_dotenv
@@ -21,8 +21,9 @@ DATA_HEADERS = {
     "APCA-API-SECRET-KEY": ALPACA_SECRET,
 }
 
-WATCHLIST_PATH = os.path.join(os.path.dirname(__file__), "..", "watchlist.json")
-JOURNAL_DIR    = os.path.join(os.path.dirname(__file__), "..", "journal")
+WATCHLIST_PATH  = os.path.join(os.path.dirname(__file__), "..", "watchlist.json")
+JOURNAL_DIR     = os.path.join(os.path.dirname(__file__), "..", "journal")
+HEARTBEAT_PATH  = os.path.join(os.path.dirname(__file__), "..", "heartbeat.json")
 
 def load_watchlist():
     with open(WATCHLIST_PATH) as f:
@@ -34,11 +35,12 @@ def alpaca_get(url, params=None):
     r.raise_for_status()
     return r.json()
 
+# ── MARKET STATUS ──
 @app.route("/api/market-status")
 def market_status():
-    data = alpaca_get(f"{BASE_URL}/v2/clock")
-    return jsonify(data)
+    return jsonify(alpaca_get(f"{BASE_URL}/v2/clock"))
 
+# ── ACCOUNT ──
 @app.route("/api/account")
 def account():
     data = alpaca_get(f"{BASE_URL}/v2/account")
@@ -51,11 +53,41 @@ def account():
         "daytrade_count":  data.get("daytrade_count"),
     })
 
+# ── POSITIONS ──
 @app.route("/api/positions")
 def positions():
-    data = alpaca_get(f"{BASE_URL}/v2/positions")
-    return jsonify(data)
+    return jsonify(alpaca_get(f"{BASE_URL}/v2/positions"))
 
+# ── PORTFOLIO HISTORY (for P&L chart timeframes) ──
+@app.route("/api/portfolio-history")
+def portfolio_history():
+    period    = request.args.get("period", "1D")
+    # Auto-select resolution based on period
+    timeframe_map = {
+        "1D":  "5Min",
+        "1W":  "1H",
+        "1M":  "1D",
+        "3M":  "1D",
+        "6M":  "1D",
+        "1A":  "1D",
+        "3A":  "1D",
+    }
+    timeframe = timeframe_map.get(period, "1D")
+    data = alpaca_get(
+        f"{BASE_URL}/v2/account/portfolio/history",
+        params={"period": period, "timeframe": timeframe, "extended_hours": "true"}
+    )
+    timestamps = data.get("timestamp", [])
+    equity     = data.get("equity", [])
+    # Pair them up, filter nulls
+    points = [
+        {"t": ts, "v": eq}
+        for ts, eq in zip(timestamps, equity)
+        if eq is not None and eq > 0
+    ]
+    return jsonify({"points": points, "timeframe": timeframe, "period": period})
+
+# ── DAILY BARS (with pagination) ──
 @app.route("/api/bars")
 def bars():
     symbols  = [s["symbol"] for s in load_watchlist()]
@@ -67,19 +99,16 @@ def bars():
 
     while True:
         params = {
-            "symbols": syms_str,
-            "timeframe": "1Day",
-            "limit": 60,
-            "start": start,
+            "symbols":    syms_str,
+            "timeframe":  "1Day",
+            "limit":      60,
+            "start":      start,
             "adjustment": "raw"
         }
         if next_page_token:
             params["page_token"] = next_page_token
 
-        data = alpaca_get(
-            "https://data.alpaca.markets/v2/stocks/bars",
-            params=params
-        )
+        data = alpaca_get("https://data.alpaca.markets/v2/stocks/bars", params=params)
 
         for sym, bar_list in data.get("bars", {}).items():
             if sym not in all_bars:
@@ -114,10 +143,52 @@ def bars():
         }
     return jsonify(result)
 
+# ── INTRADAY BARS (for 1-day sparklines) ──
+@app.route("/api/intraday-bars")
+def intraday_bars():
+    symbols  = [s["symbol"] for s in load_watchlist()]
+    syms_str = ",".join(symbols)
+    # Get today's bars from market open
+    now   = datetime.now(timezone.utc)
+    start = now.strftime("%Y-%m-%dT09:30:00-04:00")
+
+    all_bars = {}
+    next_page_token = None
+
+    while True:
+        params = {
+            "symbols":   syms_str,
+            "timeframe": "15Min",
+            "start":     start,
+            "limit":     50,
+        }
+        if next_page_token:
+            params["page_token"] = next_page_token
+
+        data = alpaca_get("https://data.alpaca.markets/v2/stocks/bars", params=params)
+
+        for sym, bar_list in data.get("bars", {}).items():
+            if sym not in all_bars:
+                all_bars[sym] = []
+            all_bars[sym].extend(bar_list)
+
+        next_page_token = data.get("next_page_token")
+        if not next_page_token:
+            break
+
+    result = {}
+    for sym, bar_list in all_bars.items():
+        if bar_list:
+            result[sym] = [b["c"] for b in bar_list]
+
+    return jsonify(result)
+
+# ── WATCHLIST ──
 @app.route("/api/watchlist")
 def watchlist():
     return jsonify(load_watchlist())
 
+# ── JOURNAL ──
 @app.route("/api/journal")
 def journal():
     files = sorted(glob.glob(os.path.join(JOURNAL_DIR, "*.md")), reverse=True)
@@ -129,11 +200,25 @@ def journal():
         entries.append({"date": date, "content": content})
     return jsonify(entries)
 
+# ── ORDERS ──
 @app.route("/api/orders")
 def orders():
     data = alpaca_get(f"{BASE_URL}/v2/orders",
                       params={"status": "all", "limit": 20, "direction": "desc"})
     return jsonify(data)
+
+# ── ROUTINE STATUS (reads heartbeat.json written by agent) ──
+@app.route("/api/routine-status")
+def routine_status():
+    try:
+        with open(HEARTBEAT_PATH) as f:
+            return jsonify(json.load(f))
+    except FileNotFoundError:
+        return jsonify({
+            "morning_research": None,
+            "trading_session":  None,
+            "end_of_day":       None,
+        })
 
 if __name__ == "__main__":
     print("\n  Trading Agent Server → http://localhost:5000")

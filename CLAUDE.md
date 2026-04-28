@@ -24,3 +24,11 @@ Before placing any trade, answer these questions:
 
 ## Output Format
 Every action must be logged to journal/YYYY-MM-DD.md in structured format.
+
+## After Each Routine Completes
+Update heartbeat.json in the project root with the current UTC timestamp:
+- After Morning Research: set "morning_research" to current ISO timestamp
+- After Trading Session: set "trading_session" to current ISO timestamp  
+- After End of Day Journal: set "end_of_day" to current ISO timestamp
+
+Example: {"morning_research": "2026-04-29T09:45:00Z", "trading_session": null, "end_of_day": null}
