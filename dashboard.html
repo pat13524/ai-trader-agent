@@ -513,6 +513,7 @@ async function loadWatchlist() {
         <td class="spark-cell" title="Today"><svg id="${spark1dId}" class="spark-svg" width="72" height="30" viewBox="0 0 72 30"></svg></td>
         <td class="ma-cell"><span class="${maBull?"ma-bull":"ma-bear"}">${fmt$(b.ma20)}</span><br>${fmt$(b.ma50)}</td>
         <td><span class="signal ${signal}">${signal}</span></td>
+        <td id="analyst-${s}"><span style="color:var(--muted);font-size:10px;">—</span></td>
       </tr>`;
     }).join("");
 
@@ -520,7 +521,7 @@ async function loadWatchlist() {
       <table class="wl-table">
         <thead><tr>
           <th>Symbol</th><th>Price</th><th>Chg</th>
-          <th>30d</th><th>Today</th><th>20d/50d MA</th><th>Signal</th>
+          <th>30d</th><th>Today</th><th>20d/50d MA</th><th>Signal</th><th>Analyst</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>`;
@@ -643,14 +644,41 @@ async function renderSchedule() {
   }).join("");
 }
 
+// ── ANALYST RATINGS ──
+async function loadAnalyst() {
+  try {
+    const data = await fetch(API + "/analyst").then(r => r.json());
+    Object.entries(data).forEach(([sym, d]) => {
+      const el = document.getElementById(`analyst-${sym}`);
+      if (!el || !d) return;
+      const total    = d.strong_buy + d.buy + d.hold + d.sell + d.strong_sell;
+      const bullish  = d.strong_buy + d.buy;
+      const bearish  = d.sell + d.strong_sell;
+      const consensus = total === 0 ? "—"
+        : bullish / total >= 0.6 ? "Buy"
+        : bearish / total >= 0.4 ? "Sell"
+        : "Hold";
+      const consColor = consensus === "Buy"  ? "var(--green)"
+                      : consensus === "Sell" ? "var(--red)"
+                      : "var(--amber)";
+      const target = d.target_mean
+        ? `<div style="font-size:10px;color:var(--muted);margin-top:1px;">PT $${parseFloat(d.target_mean).toFixed(0)}</div>`
+        : "";
+      el.innerHTML = `
+        <div style="font-size:11px;font-weight:600;color:${consColor}">${consensus}</div>
+        <div style="font-size:9px;color:var(--muted)">${bullish}B · ${d.hold}H · ${bearish}S</div>
+        ${target}`;
+    });
+  } catch(e) { console.warn("analyst:", e); }
+}
+
 // ── INIT ──
 async function loadAll() {
   await loadMarketStatus();
   await Promise.all([
     loadAccount(),
     loadPositions(),
-    loadWatchlist(),
-    loadOrders(),
+    loadWatchlist().then(() => loadAnalyst()),    loadOrders(),
     loadJournal(),
     renderSchedule(),
   ]);
