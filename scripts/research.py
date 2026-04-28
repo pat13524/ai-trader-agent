@@ -64,12 +64,54 @@ def get_news(symbol):
     response = requests.get(url, headers=headers, params=params)
     return response.json()
 
+def get_bulk_bars(symbols, timeframe="1Day", limit=60):
+    """Fetch bars for multiple symbols in one API call, handling pagination."""
+    headers = {
+        "APCA-API-KEY-ID": ALPACA_KEY,
+        "APCA-API-SECRET-KEY": ALPACA_SECRET,
+    }
+    start = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
+    url = "https://data.alpaca.markets/v2/stocks/bars"
+    
+    all_bars = {}
+    next_page_token = None
+
+    while True:
+        params = {
+            "symbols": ",".join(symbols),
+            "timeframe": timeframe,
+            "limit": limit,
+            "start": start,
+            "adjustment": "raw"
+        }
+        if next_page_token:
+            params["page_token"] = next_page_token
+
+        response = requests.get(url, headers=headers, params=params)
+        data = response.json()
+
+        for sym, bars in data.get("bars", {}).items():
+            if sym not in all_bars:
+                all_bars[sym] = []
+            all_bars[sym].extend(bars)
+
+        next_page_token = data.get("next_page_token")
+        if not next_page_token:
+            break
+
+    return {"bars": all_bars}
+
 if __name__ == "__main__":
     action = sys.argv[1] if len(sys.argv) > 1 else "account"
     symbol = sys.argv[2] if len(sys.argv) > 2 else None
 
     if action == "bars" and symbol:
         print(json.dumps(get_bars(symbol)))
+    elif action == "bulk":
+        with open("watchlist.json") as f:
+            wl = json.load(f)
+        symbols = [s["symbol"] for s in wl["watchlist"]]
+        print(json.dumps(get_bulk_bars(symbols)))
     elif action == "news" and symbol:
         print(json.dumps(get_news(symbol)))
     elif action == "positions":
