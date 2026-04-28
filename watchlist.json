@@ -8,7 +8,7 @@
     {"symbol": "ADBE", "description": "Adobe - software", "max_allocation_pct": 7},
     {"symbol": "NOW", "description": "ServiceNow - enterprise software", "max_allocation_pct": 7},
     {"symbol": "TTWO", "description": "Take-Two Interactive - gaming", "max_allocation_pct": 6},
-    {"symbol": "ABX", "description": "Barrick Gold - US listed", "max_allocation_pct": 5},
+    {"symbol": "B", "description": "Barrick Gold - US listed", "max_allocation_pct": 5},
     {"symbol": "NBIS", "description": "Nebius Group", "max_allocation_pct": 5},
     {"symbol": "RZLV", "description": "Rezolve AI", "max_allocation_pct": 3},
     {"symbol": "AAPL", "description": "Apple - large cap anchor", "max_allocation_pct": 7},
