@@ -61,14 +61,34 @@ def bars():
     symbols  = [s["symbol"] for s in load_watchlist()]
     syms_str = ",".join(symbols)
     start    = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
-    data = alpaca_get(
-        "https://data.alpaca.markets/v2/stocks/bars",
-        params={"symbols": syms_str, "timeframe": "1Day", "limit": 60,
-                "start": start, "adjustment": "raw"}
-    )
-    bars_map = data.get("bars", {})
+
+    all_bars = {}
+    next_page_token = None
+
+    while True:
+        params = {
+            "symbols": syms_str, "timeframe": "1Day", "limit": 60,
+            "start": start, "adjustment": "raw"
+        }
+        if next_page_token:
+            params["page_token"] = next_page_token
+
+        data = alpaca_get(
+            "https://data.alpaca.markets/v2/stocks/bars",
+            params=params
+        )
+
+        for sym, bar_list in data.get("bars", {}).items():
+            if sym not in all_bars:
+                all_bars[sym] = []
+            all_bars[sym].extend(bar_list)
+
+        next_page_token = data.get("next_page_token")
+        if not next_page_token:
+            break
+
     result = {}
-    for sym, bar_list in bars_map.items():
+    for sym, bar_list in all_bars.items():
         if not bar_list:
             continue
         closes     = [b["c"] for b in bar_list]
