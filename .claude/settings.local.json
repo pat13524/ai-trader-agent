@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python scripts/trade.py status)",
+      "Bash(python scripts/research.py bars AAPL)",
+      "Bash(python -c ' *)"
+    ]
+  }
+}
