@@ -11,9 +11,11 @@
     {"symbol": "ABX", "description": "Barrick Gold - US listed", "max_allocation_pct": 5},
     {"symbol": "NBIS", "description": "Nebius Group", "max_allocation_pct": 5},
     {"symbol": "RZLV", "description": "Rezolve AI", "max_allocation_pct": 3},
-    {"symbol": "SPY", "description": "S&P 500 ETF - market exposure", "max_allocation_pct": 10},
-    {"symbol": "QQQ", "description": "Nasdaq ETF - tech exposure", "max_allocation_pct": 8},
-    {"symbol": "AAPL", "description": "Apple - large cap anchor", "max_allocation_pct": 7}
+    {"symbol": "AAPL", "description": "Apple - large cap anchor", "max_allocation_pct": 7},
+    {"symbol": "MFC", "description": "Manulife Financial - insurance", "max_allocation_pct": 5},
+    {"symbol": "CNQ", "description": "Canadian Natural Resources - energy", "max_allocation_pct": 5},
+    {"symbol": "BMO", "description": "Bank of Montreal - Canadian banking", "max_allocation_pct": 5},
+    {"symbol": "FTS", "description": "Fortis - Canadian utility", "max_allocation_pct": 5}
   ],
   "cash_reserve_pct": 10
 }
