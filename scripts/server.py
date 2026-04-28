@@ -61,14 +61,37 @@ def bars():
     symbols  = [s["symbol"] for s in load_watchlist()]
     syms_str = ",".join(symbols)
     start    = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
-    data = alpaca_get(
-        "https://data.alpaca.markets/v2/stocks/bars",
-        params={"symbols": syms_str, "timeframe": "1Day", "limit": 60,
-                "start": start, "adjustment": "raw"}
-    )
-    bars_map = data.get("bars", {})
+
+    all_bars = {}
+    next_page_token = None
+
+    while True:
+        params = {
+            "symbols": syms_str,
+            "timeframe": "1Day",
+            "limit": 60,
+            "start": start,
+            "adjustment": "raw"
+        }
+        if next_page_token:
+            params["page_token"] = next_page_token
+
+        data = alpaca_get(
+            "https://data.alpaca.markets/v2/stocks/bars",
+            params=params
+        )
+
+        for sym, bar_list in data.get("bars", {}).items():
+            if sym not in all_bars:
+                all_bars[sym] = []
+            all_bars[sym].extend(bar_list)
+
+        next_page_token = data.get("next_page_token")
+        if not next_page_token:
+            break
+
     result = {}
-    for sym, bar_list in bars_map.items():
+    for sym, bar_list in all_bars.items():
         if not bar_list:
             continue
         closes     = [b["c"] for b in bar_list]
@@ -78,12 +101,17 @@ def bars():
         ma50       = round(sum(closes[-50:]) / min(len(closes), 50), 2)
         change_pct = round((last["c"] - prev) / prev * 100, 2) if prev else 0
         result[sym] = {
-            "open": last["o"], "high": last["h"],
-            "low":  last["l"], "close": last["c"],
-            "volume": last["v"], "prev_close": prev,
-            "change_pct": change_pct, "ma20": ma20, "ma50": ma50,
-            "closes": closes[-30:],  # last 30 days for sparkline
-        } 
+            "open":       last["o"],
+            "high":       last["h"],
+            "low":        last["l"],
+            "close":      last["c"],
+            "volume":     last["v"],
+            "prev_close": prev,
+            "change_pct": change_pct,
+            "ma20":       ma20,
+            "ma50":       ma50,
+            "closes":     closes[-30:],
+        }
     return jsonify(result)
 
 @app.route("/api/watchlist")
