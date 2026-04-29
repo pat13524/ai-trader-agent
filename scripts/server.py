@@ -233,7 +233,7 @@ def routine_status():
             "end_of_day":       None,
         })
     
-    
+
 @app.route("/api/analyst")
 def analyst():
     symbols = [s["symbol"] for s in load_watchlist()]
@@ -247,9 +247,6 @@ def analyst():
             continue
         try:
             ratings = finnhub_get("stock/recommendation", {"symbol": sym})
-            target  = finnhub_get("stock/price-target",   {"symbol": sym})
-
-            # ratings is a list newest-first, grab latest month
             latest = ratings[0] if ratings else {}
 
             data = {
@@ -258,10 +255,10 @@ def analyst():
                 "sell":        latest.get("sell", 0),
                 "strong_buy":  latest.get("strongBuy", 0),
                 "strong_sell": latest.get("strongSell", 0),
-                "target_mean": target.get("targetMean"),
-                "target_high": target.get("targetHigh"),
-                "target_low":  target.get("targetLow"),
-                "target_count":target.get("numberOfAnalysts"),
+                "target_mean": None,
+                "target_high": None,
+                "target_low":  None,
+                "target_count": None,
             }
             _analyst_cache[sym]      = data
             _analyst_cache_time[sym] = now
