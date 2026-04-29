@@ -101,6 +101,20 @@ def get_bulk_bars(symbols, timeframe="1Day", limit=60):
 
     return {"bars": all_bars}
 
+
+def get_latest_quotes(symbols):
+    """Get real-time latest quotes for a list of symbols."""
+    headers = {
+        "APCA-API-KEY-ID": ALPACA_KEY,
+        "APCA-API-SECRET-KEY": ALPACA_SECRET,
+    }
+    url = "https://data.alpaca.markets/v2/stocks/quotes/latest"
+    params = {"symbols": ",".join(symbols)}
+    response = requests.get(url, headers=headers, params=params)
+    return response.json()
+
+
+
 if __name__ == "__main__":
     action = sys.argv[1] if len(sys.argv) > 1 else "account"
     symbol = sys.argv[2] if len(sys.argv) > 2 else None
@@ -112,6 +126,11 @@ if __name__ == "__main__":
             wl = json.load(f)
         symbols = [s["symbol"] for s in wl["watchlist"]]
         print(json.dumps(get_bulk_bars(symbols)))
+    elif action == "quotes":
+        with open("watchlist.json") as f:
+            wl = json.load(f)
+        symbols = [s["symbol"] for s in wl["watchlist"]]
+        print(json.dumps(get_latest_quotes(symbols)))
     elif action == "news" and symbol:
         print(json.dumps(get_news(symbol)))
     elif action == "positions":
