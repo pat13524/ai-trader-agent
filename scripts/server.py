@@ -1,6 +1,7 @@
 import os
 import json
 import glob
+import time
 from datetime import datetime, timedelta, timezone
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -15,6 +16,7 @@ CORS(app)
 ALPACA_KEY    = os.getenv("APCA_API_KEY_ID")
 ALPACA_SECRET = os.getenv("APCA_API_SECRET_KEY")
 BASE_URL      = os.getenv("APCA_BASE_URL")
+FINNHUB_KEY = os.getenv("FINNHUB_API_KEY")
 
 DATA_HEADERS = {
     "APCA-API-KEY-ID":     ALPACA_KEY,
@@ -25,6 +27,10 @@ WATCHLIST_PATH  = os.path.join(os.path.dirname(__file__), "..", "watchlist.json"
 JOURNAL_DIR     = os.path.join(os.path.dirname(__file__), "..", "journal")
 HEARTBEAT_PATH  = os.path.join(os.path.dirname(__file__), "..", "heartbeat.json")
 
+_analyst_cache = {}
+_analyst_cache_time = {}
+ANALYST_CACHE_TTL = 6 * 3600
+
 def load_watchlist():
     with open(WATCHLIST_PATH) as f:
         data = json.load(f)
@@ -32,6 +38,13 @@ def load_watchlist():
 
 def alpaca_get(url, params=None):
     r = requests.get(url, headers=DATA_HEADERS, params=params, timeout=10)
+    r.raise_for_status()
+    return r.json()
+
+def finnhub_get(endpoint, params=None):
+    p = params or {}
+    p["token"] = FINNHUB_KEY
+    r = requests.get(f"https://finnhub.io/api/v1/{endpoint}", params=p, timeout=8)
     r.raise_for_status()
     return r.json()
 
@@ -219,6 +232,45 @@ def routine_status():
             "trading_session":  None,
             "end_of_day":       None,
         })
+    
+    
+@app.route("/api/analyst")
+def analyst():
+    symbols = [s["symbol"] for s in load_watchlist()]
+    result = {}
+    now = time.time()
+
+    for sym in symbols:
+        # Return cached data if fresh
+        if sym in _analyst_cache and now - _analyst_cache_time.get(sym, 0) < ANALYST_CACHE_TTL:
+            result[sym] = _analyst_cache[sym]
+            continue
+        try:
+            ratings = finnhub_get("stock/recommendation", {"symbol": sym})
+            target  = finnhub_get("stock/price-target",   {"symbol": sym})
+
+            # ratings is a list newest-first, grab latest month
+            latest = ratings[0] if ratings else {}
+
+            data = {
+                "buy":         latest.get("buy", 0),
+                "hold":        latest.get("hold", 0),
+                "sell":        latest.get("sell", 0),
+                "strong_buy":  latest.get("strongBuy", 0),
+                "strong_sell": latest.get("strongSell", 0),
+                "target_mean": target.get("targetMean"),
+                "target_high": target.get("targetHigh"),
+                "target_low":  target.get("targetLow"),
+                "target_count":target.get("numberOfAnalysts"),
+            }
+            _analyst_cache[sym]      = data
+            _analyst_cache_time[sym] = now
+            result[sym] = data
+        except Exception as e:
+            result[sym] = None
+
+    return jsonify(result)
+
 
 if __name__ == "__main__":
     print("\n  Trading Agent Server → http://localhost:5000")
